@@ -1,0 +1,7 @@
+node_modules/
+.vscode-test/
+dist/
+out/
+*.vsix
+.cucumber-runner/
+.DS_Store

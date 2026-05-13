@@ -1,0 +1,7 @@
+{"gherkinDocument":{"uri":"features/passed.feature","feature":{"name":"Calculator","children":[{"scenario":{"id":"scenario-1","name":"Add numbers","location":{"line":3},"steps":[{"id":"step-1","keyword":"Given ","text":"a number","location":{"line":4}},{"id":"step-2","keyword":"Then ","text":"it is added","location":{"line":5}}]}}]}}}
+{"pickle":{"id":"pickle-1","uri":"features/passed.feature","name":"Add numbers","astNodeIds":["scenario-1"],"steps":[{"id":"pickle-step-1","astNodeIds":["step-1"],"text":"a number"},{"id":"pickle-step-2","astNodeIds":["step-2"],"text":"it is added"}]}}
+{"testCase":{"id":"test-case-1","pickleId":"pickle-1","testSteps":[{"id":"test-step-1","pickleStepId":"pickle-step-1"},{"id":"test-step-2","pickleStepId":"pickle-step-2"}]}}
+{"testCaseStarted":{"id":"started-1","testCaseId":"test-case-1"}}
+{"testStepFinished":{"testCaseStartedId":"started-1","testStepId":"test-step-1","testStepResult":{"status":"PASSED","duration":{"seconds":0,"nanos":10000000}}}}
+{"testStepFinished":{"testCaseStartedId":"started-1","testStepId":"test-step-2","testStepResult":{"status":"PASSED","duration":{"seconds":0,"nanos":20000000}}}}
+{"testCaseFinished":{"testCaseStartedId":"started-1"}}

@@ -1,0 +1,9 @@
+{"gherkinDocument":{"uri":"features/failed.feature","feature":{"name":"Checkout","children":[{"scenario":{"id":"scenario-2","name":"Pay with card","location":{"line":7},"steps":[{"id":"step-3","keyword":"Given ","text":"a basket","location":{"line":8}},{"id":"step-4","keyword":"When ","text":"I pay","location":{"line":9}},{"id":"step-5","keyword":"Then ","text":"payment succeeds","location":{"line":10}}]}}]}}}
+{"pickle":{"id":"pickle-2","uri":"features/failed.feature","name":"Pay with card","astNodeIds":["scenario-2"],"steps":[{"id":"pickle-step-3","astNodeIds":["step-3"],"text":"a basket"},{"id":"pickle-step-4","astNodeIds":["step-4"],"text":"I pay"},{"id":"pickle-step-5","astNodeIds":["step-5"],"text":"payment succeeds"}]}}
+{"testCase":{"id":"test-case-2","pickleId":"pickle-2","testSteps":[{"id":"test-step-3","pickleStepId":"pickle-step-3"},{"id":"test-step-4","pickleStepId":"pickle-step-4"},{"id":"test-step-5","pickleStepId":"pickle-step-5"}]}}
+{"testCaseStarted":{"id":"started-2","testCaseId":"test-case-2"}}
+{"testStepFinished":{"testCaseStartedId":"started-2","testStepId":"test-step-3","testStepResult":{"status":"PASSED","duration":{"seconds":0,"nanos":5000000}}}}
+{"attachment":{"testCaseStartedId":"started-2","testStepId":"test-step-4","body":"payment log","mediaType":"text/plain"}}
+{"testStepFinished":{"testCaseStartedId":"started-2","testStepId":"test-step-4","testStepResult":{"status":"FAILED","duration":{"seconds":1,"nanos":250000000},"message":"Payment declined","exception":{"message":"Payment declined","stackTrace":"Error: Payment declined\n    at world.pay"}}}}
+{"testStepFinished":{"testCaseStartedId":"started-2","testStepId":"test-step-5","testStepResult":{"status":"SKIPPED","duration":{"seconds":0,"nanos":0}}}}
+{"testCaseFinished":{"testCaseStartedId":"started-2"}}

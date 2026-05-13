@@ -1,0 +1,143 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Gherkin",
+  "scopeName": "text.gherkin.feature",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#docstrings"
+    },
+    {
+      "include": "#tags"
+    },
+    {
+      "include": "#feature"
+    },
+    {
+      "include": "#sections"
+    },
+    {
+      "include": "#steps"
+    },
+    {
+      "include": "#tables"
+    },
+    {
+      "include": "#placeholders"
+    },
+    {
+      "include": "#strings"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.gherkin",
+          "match": "^\\s*#.*$"
+        }
+      ]
+    },
+    "docstrings": {
+      "patterns": [
+        {
+          "name": "punctuation.definition.raw.docstring.gherkin",
+          "match": "^\\s*(\"\"\"|```).*$"
+        }
+      ]
+    },
+    "tags": {
+      "patterns": [
+        {
+          "name": "storage.type.tag.gherkin",
+          "match": "@[\\w-]+"
+        }
+      ]
+    },
+    "feature": {
+      "patterns": [
+        {
+          "name": "meta.feature.gherkin",
+          "match": "^\\s*(Feature|Business Need|Ability):(.*)$",
+          "captures": {
+            "1": {
+              "name": "keyword.control.gherkin"
+            },
+            "2": {
+              "name": "entity.name.section.gherkin"
+            }
+          }
+        }
+      ]
+    },
+    "sections": {
+      "patterns": [
+        {
+          "name": "meta.section.gherkin",
+          "match": "^\\s*(Rule|Background|Scenario Outline|Scenario Template|Scenario|Examples|Scenarios):(.*)$",
+          "captures": {
+            "1": {
+              "name": "keyword.control.gherkin"
+            },
+            "2": {
+              "name": "entity.name.section.gherkin"
+            }
+          }
+        }
+      ]
+    },
+    "steps": {
+      "patterns": [
+        {
+          "name": "meta.step.gherkin",
+          "match": "^\\s*(Given|When|Then|And|But|\\*)\\b\\s*(.*)$",
+          "captures": {
+            "1": {
+              "name": "keyword.other.step.gherkin"
+            },
+            "2": {
+              "patterns": [
+                {
+                  "include": "#placeholders"
+                },
+                {
+                  "include": "#strings"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "placeholders": {
+      "patterns": [
+        {
+          "name": "variable.parameter.gherkin",
+          "match": "<[^>]+>"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.gherkin",
+          "match": "\"([^\"\\\\]|\\\\.)*\""
+        },
+        {
+          "name": "string.quoted.single.gherkin",
+          "match": "'([^'\\\\]|\\\\.)*'"
+        }
+      ]
+    },
+    "tables": {
+      "patterns": [
+        {
+          "name": "markup.inline.raw.table.gherkin",
+          "match": "^\\s*\\|.*\\|\\s*$"
+        }
+      ]
+    }
+  }
+}

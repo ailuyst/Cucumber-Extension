@@ -1,0 +1,9 @@
+{
+  "cucumberRunner.command": "npx cucumber-js --config cucumber.cjs",
+  "cucumberRunner.reportFormat": "message",
+  "cucumberRunner.reportOutputPath": "reports/cucumber.ndjson",
+  "cucumberautocomplete.steps": [
+    "features/step_definitions/*.ts"
+  ],
+  "cucumberautocomplete.syncfeatures": "features/*.feature"
+}

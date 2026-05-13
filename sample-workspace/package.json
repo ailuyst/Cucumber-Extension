@@ -1,0 +1,16 @@
+{
+  "name": "cucumber-runner-sample-workspace",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run test:cucumber",
+    "test:cucumber": "npm run build && cucumber-js --config cucumber.cjs",
+    "test:message": "npm run build && cucumber-js --config cucumber.cjs --format message:reports/cucumber.ndjson"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.3.0",
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

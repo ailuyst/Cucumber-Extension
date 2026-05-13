@@ -1,0 +1,249 @@
+{
+  "name": "cucumber-runner",
+  "displayName": "Cucumber Runner",
+  "description": "Discover, run, and inspect Cucumber/Gherkin tests from VS Code Test Explorer.",
+  "version": "0.0.1",
+  "publisher": "ailuyst",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ailuyst/Cucumber-Extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ailuyst/Cucumber-Extension/issues"
+  },
+  "homepage": "https://github.com/ailuyst/Cucumber-Extension#readme",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Testing"
+  ],
+  "keywords": [
+    "cucumber",
+    "gherkin",
+    "bdd",
+    "testing",
+    "test-explorer"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/*.feature",
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "gherkin",
+        "aliases": [
+          "Gherkin",
+          "Cucumber Feature"
+        ],
+        "extensions": [
+          ".feature"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "gherkin",
+        "scopeName": "text.gherkin.feature",
+        "path": "./syntaxes/gherkin.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "cucumberRunner.refreshTests",
+        "title": "Cucumber: Refresh Tests"
+      },
+      {
+        "command": "cucumberRunner.runAll",
+        "title": "Cucumber: Run All Tests"
+      },
+      {
+        "command": "cucumberRunner.runCurrentFeature",
+        "title": "Cucumber: Run Current Feature"
+      },
+      {
+        "command": "cucumberRunner.runCurrentScenario",
+        "title": "Cucumber: Run Current Scenario"
+      },
+      {
+        "command": "cucumberRunner.showLastRunDetails",
+        "title": "Cucumber: Show Last Run Details"
+      },
+      {
+        "command": "cucumberRunner.showItemDetails",
+        "title": "Cucumber: Show Details"
+      },
+      {
+        "command": "cucumberRunner.copyItemDetails",
+        "title": "Cucumber: Copy Details"
+      },
+      {
+        "command": "cucumberRunner.revealItemSource",
+        "title": "Cucumber: Reveal Source"
+      },
+      {
+        "command": "cucumberRunner.openReport",
+        "title": "Cucumber: Open Last Report"
+      }
+    ],
+    "menus": {
+      "testing/item/context": [
+        {
+          "command": "cucumberRunner.showItemDetails",
+          "group": "cucumber@1"
+        },
+        {
+          "command": "cucumberRunner.copyItemDetails",
+          "group": "cucumber@2"
+        },
+        {
+          "command": "cucumberRunner.revealItemSource",
+          "group": "cucumber@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Cucumber Runner",
+      "properties": {
+        "cucumberRunner.featuresPath": {
+          "type": "string",
+          "default": "features",
+          "description": "Legacy relative path to discover Cucumber feature files. Prefer cucumberRunner.features."
+        },
+        "cucumberRunner.configFile": {
+          "type": "string",
+          "default": "cucumber.js",
+          "description": "Cucumber configuration file expected at the workspace root."
+        },
+        "cucumberRunner.features": {
+          "type": "array",
+          "default": [
+            "features/**/*.feature"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns used to discover Cucumber feature files."
+        },
+        "cucumberRunner.steps": {
+          "type": "array",
+          "default": [
+            "src/steps/**/*.ts"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns used to find Cucumber step definitions for Go to Definition."
+        },
+        "cucumberRunner.support": {
+          "type": "array",
+          "default": [
+            "src/support/**/*.ts"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional Cucumber support glob patterns included in step definition lookup diagnostics."
+        },
+        "cucumberRunner.command": {
+          "type": "string",
+          "default": "npx cucumber-js",
+          "description": "Command used to execute Cucumber tests."
+        },
+        "cucumberRunner.cwd": {
+          "type": "string",
+          "default": "${workspaceFolder}",
+          "description": "Working directory for the Cucumber command."
+        },
+        "cucumberRunner.reportFormat": {
+          "type": "string",
+          "default": "message",
+          "enum": [
+            "message",
+            "json",
+            "stdout"
+          ],
+          "description": "Legacy display/report setting. Test Explorer result mapping always uses the Cucumber message report."
+        },
+        "cucumberRunner.reportOutputPath": {
+          "type": "string",
+          "default": ".cucumber-runner/cucumber-report.ndjson",
+          "description": "Output path for the structured Cucumber report when supported."
+        },
+        "cucumberRunner.enableAutoDiscovery": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically discover feature files and refresh test items on file changes."
+        },
+        "cucumberRunner.highlightStepParameters": {
+          "type": "boolean",
+          "default": true,
+          "description": "Underline matched Cucumber step parameters in .feature editors using discovered step definitions."
+        },
+        "cucumberRunner.timeoutMs": {
+          "type": "number",
+          "default": 120000,
+          "description": "Maximum time in milliseconds before a Cucumber run is killed and marked as errored."
+        },
+        "cucumberRunner.debugDiagnostics": {
+          "type": "boolean",
+          "default": false,
+          "description": "Legacy verbose debug-adapter diagnostics toggle. Prefer cucumberRunner.diagnosticsVerbose."
+        },
+        "cucumberRunner.diagnosticsVerbose": {
+          "type": "boolean",
+          "default": false,
+          "description": "Write verbose internal runner diagnostics such as spawn options, environment sanitization, node diagnostics, and debug-adapter output capture details."
+        },
+        "cucumberRunner.stepDefinitionsPath": {
+          "type": "string",
+          "default": "",
+          "description": "Legacy setting. Prefer cucumberRunner.steps."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run bundle",
+    "clean": "node -e \"const fs=require('fs'); for (const p of ['dist','out']) fs.rmSync(p,{recursive:true,force:true}); for (const f of fs.readdirSync('.')) if (f.endsWith('.vsix')) fs.rmSync(f,{force:true});\"",
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "bundle": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --sourcemap --sources-content=false --outfile=dist/extension.js",
+    "bundle:watch": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --sourcemap --sources-content=false --outfile=dist/extension.js --watch",
+    "test:parser": "npm run compile && node test/resultParser.test.js",
+    "test:details": "npm run compile && node test/details.test.js",
+    "test:failure": "npm run compile && node test/failureMessage.test.js",
+    "test:commands": "npm run compile && node test/commandBuilder.test.js",
+    "test:launcher": "npm run compile && node test/processLauncher.test.js",
+    "test:paths": "npm run compile && node test/pathCanonicalizer.test.js && node test/pathMatcher.test.js",
+    "test:stdout": "npm run compile && node test/stdoutLogExtractor.test.js",
+    "test:examples": "npm run compile && node test/exampleRows.test.js",
+    "test:policy": "npm run compile && node test/runResultPolicy.test.js",
+    "test:config": "npm run compile && node test/config.test.js",
+    "test:steps": "npm run compile && node test/stepDefinitionMatcher.test.js",
+    "test:integration": "npm run compile && node test/integration/runTest.js",
+    "deps:check": "license-checker --production --summary",
+    "package": "npm run clean && npm run compile && npm run bundle && vsce package",
+    "publish:vsix": "code --install-extension cucumber-runner-0.0.1.vsix",
+    "publish:preview": "vsce publish --pre-release",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version"
+  },
+  "devDependencies": {
+    "@types/node": "20.11.0",
+    "@types/vscode": "1.80.0",
+    "@vscode/test-electron": "2.5.2",
+    "@vscode/vsce": "3.9.1",
+    "esbuild": "0.28.0",
+    "license-checker": "25.0.1",
+    "typescript": "5.5.4"
+  },
+  "dependencies": {
+    "@cucumber/gherkin": "^39.1.0",
+    "@cucumber/messages": "^32.3.1"
+  }
+}
