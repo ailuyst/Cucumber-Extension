@@ -1,5 +1,5 @@
 {
-  "name": "cucumber-runner",
+  "name": "ailuyst-cucumber-runner",
   "displayName": "Cucumber Runner",
   "description": "Discover, run, and inspect Cucumber/Gherkin tests from VS Code Test Explorer.",
   "version": "0.0.1",
