@@ -2,8 +2,9 @@
   "name": "ailuyst-cucumber-runner",
   "displayName": "Ailuyst Cucumber Runner",
   "description": "Discover, run, and inspect Cucumber/Gherkin tests from VS Code Test Explorer.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "ailuyst",
+  "icon": "images/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -228,7 +229,7 @@
     "test:integration": "npm run compile && node test/integration/runTest.js",
     "deps:check": "license-checker --production --summary",
     "package": "npm run clean && npm run compile && npm run bundle && vsce package",
-    "publish:vsix": "code --install-extension ailuyst-cucumber-runner-0.0.1.vsix",
+    "publish:vsix": "code --install-extension ailuyst-cucumber-runner-0.0.2.vsix",
     "publish:preview": "vsce publish --pre-release",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version"
