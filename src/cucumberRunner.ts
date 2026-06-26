@@ -9,6 +9,8 @@ import { formatScenarioDetails, formatStepDetails } from './detailsFormatter';
 import { CucumberResultRegistry } from './resultRegistry';
 import { buildCucumberArgs, buildCucumberCommand, splitCommand } from './commandBuilder';
 import {
+  ChildEnvironmentMode,
+  ChildEnvironmentOptions,
   buildNodeDiagnosticInvocation,
   buildSpawnInvocation,
   localCucumberBinPath,
@@ -33,6 +35,8 @@ import {
   CucumberScenarioResult,
   CucumberStepResult,
   formatCucumberStepLabel,
+  isAfterCaseHook,
+  isBeforeCaseHook,
   formatCucumberRunResult,
   orderScenarioStepsForExplorer,
   parseCucumberMessageReport,
@@ -418,6 +422,8 @@ export class CucumberRunner {
       executable: builtCommand.executable,
       args: builtCommand.args,
       cwd: options.cwd
+    }, process.platform, {
+      environment: this.childEnvironmentOptions()
     });
     const diagnosticsVerbose = this.diagnosticsVerbose();
     if (diagnosticsVerbose) {
@@ -531,7 +537,10 @@ export class CucumberRunner {
       return;
     }
 
-    const diagnostic = buildNodeDiagnosticInvocation(cwd, process.platform, { nodeExecutable: invocation.executable });
+    const diagnostic = buildNodeDiagnosticInvocation(cwd, process.platform, {
+      nodeExecutable: invocation.executable,
+      environment: this.childEnvironmentOptions()
+    });
     this.logPanel.appendLine('--- node diagnostic ---');
     this.logPanel.appendLine(`Diagnostic spawn executable: ${diagnostic.executable}`);
     this.logPanel.appendLine(`Diagnostic spawn args: ${JSON.stringify(diagnostic.args)}`);
@@ -2190,7 +2199,7 @@ for (const method of methods) {
   ): vscode.TestItem | undefined {
     const parentSteps = index.stepsByParent.get(parent.id);
     if (!parentSteps) {
-      return undefined;
+      return this.createRuntimeStepItem(index, parent, result, stepIndex);
     }
 
     const lineMatch = result.line ? this.firstUnused(parentSteps.byLine.get(result.line), usedStepItems) : undefined;
@@ -2217,9 +2226,55 @@ for (const method of methods) {
     }
 
     const orderedMatch = parentSteps.ordered[stepIndex];
-    return orderedMatch && !usedStepItems.has(orderedMatch.id)
+    const fallback = orderedMatch && !usedStepItems.has(orderedMatch.id)
       ? orderedMatch
       : parentSteps.ordered.find((item) => !usedStepItems.has(item.id));
+    return fallback ?? this.createRuntimeStepItem(index, parent, result, stepIndex);
+  }
+
+  private createRuntimeStepItem(
+    index: ResultItemIndex,
+    parent: vscode.TestItem,
+    step: CucumberStepResult,
+    stepIndex: number
+  ): vscode.TestItem | undefined {
+    if (!parent.uri) {
+      return undefined;
+    }
+    const ownerLine = parent.range ? parent.range.start.line + 1 : 1;
+    const stepLineOrOrdinal = step.line ?? `runtime-${stepIndex + 1}`;
+    const id = `step:${parent.uri.toString()}:${ownerLine}:${stepLineOrOrdinal}`;
+    const existing = parent.children.get(id);
+    if (existing) {
+      this.indexStepItem(index, parent, existing);
+      return existing;
+    }
+
+    const item = this.controller.createTestItem(id, formatCucumberStepLabel(step), parent.uri);
+    item.range = step.line !== undefined
+      ? new vscode.Range(step.line - 1, 0, step.line - 1, 0)
+      : parent.range;
+    parent.children.add(item);
+    this.indexStepItem(index, parent, item);
+    this.reorderExecutionChildrenForDisplay(parent);
+    return item;
+  }
+
+  private indexStepItem(index: ResultItemIndex, parent: vscode.TestItem, item: vscode.TestItem): void {
+    const stepIndex = index.stepsByParent.get(parent.id) ?? {
+      byLine: new Map<number, vscode.TestItem[]>(),
+      byText: new Map<string, vscode.TestItem[]>(),
+      ordered: []
+    };
+    if (!stepIndex.ordered.some((candidate) => candidate.id === item.id)) {
+      stepIndex.ordered.push(item);
+    }
+    const line = item.range?.start.line;
+    if (line !== undefined) {
+      this.addIndexedItem(stepIndex.byLine, line + 1, item);
+    }
+    this.addIndexedItem(stepIndex.byText, this.normalizeStepText(item.label), item);
+    index.stepsByParent.set(parent.id, stepIndex);
   }
 
   private findOrCreateHookItem(
@@ -2242,6 +2297,7 @@ for (const method of methods) {
     const item = this.controller.createTestItem(hookId, formatCucumberStepLabel(step), parent.uri);
     item.range = parent.range;
     parent.children.add(item);
+    this.reorderExecutionChildrenForDisplay(parent);
     return item;
   }
 
@@ -2287,8 +2343,85 @@ for (const method of methods) {
     if (ordered.length === 0) {
       return;
     }
+    this.applyHookDisplayRanges(parent, ordered);
     this.applyRuntimeSortText(ordered);
     parent.children.replace(ordered);
+  }
+
+  private reorderExecutionChildrenForDisplay(parent: vscode.TestItem): void {
+    const existing = this.childItems(parent);
+    const executionItems = existing.filter((item) => this.isExecutionLeafItem(item));
+    if (executionItems.length <= 1) {
+      return;
+    }
+
+    const originalIndex = new Map(existing.map((item, index) => [item.id, index]));
+    const ordered = [...existing].sort((left, right) => {
+      const leftPhase = this.executionDisplayPhase(left);
+      const rightPhase = this.executionDisplayPhase(right);
+      if (leftPhase !== rightPhase) {
+        return leftPhase - rightPhase;
+      }
+      return (originalIndex.get(left.id) ?? 0) - (originalIndex.get(right.id) ?? 0);
+    });
+    this.applyHookDisplayRanges(parent, ordered);
+    this.applyRuntimeSortText(ordered);
+    parent.children.replace(ordered);
+  }
+
+  private applyHookDisplayRanges(parent: vscode.TestItem, ordered: readonly vscode.TestItem[]): void {
+    const stepLines = ordered
+      .filter((item) => item.id.startsWith('step:'))
+      .map((item) => item.range?.start.line)
+      .filter((line): line is number => line !== undefined);
+    if (stepLines.length === 0) {
+      return;
+    }
+
+    const minStepLine = Math.min(...stepLines);
+    const maxStepLine = Math.max(...stepLines);
+    const beforeHooks = ordered.filter((item) => this.executionDisplayPhase(item) === 0);
+    const afterHooks = ordered.filter((item) => this.executionDisplayPhase(item) === 2);
+
+    beforeHooks.forEach((item, index) => {
+      const line = Math.max(0, minStepLine - beforeHooks.length + index);
+      item.range = new vscode.Range(line, 0, line, 0);
+    });
+    afterHooks.forEach((item, index) => {
+      const line = maxStepLine + 1 + index;
+      item.range = new vscode.Range(line, 0, line, 0);
+    });
+  }
+
+  private executionDisplayPhase(item: vscode.TestItem): number {
+    if (!this.isExecutionLeafItem(item)) {
+      return 3;
+    }
+    const step = this.stepResultFromItemForOrdering(item);
+    if (step && isBeforeCaseHook(step)) {
+      return 0;
+    }
+    if (step && isAfterCaseHook(step)) {
+      return 2;
+    }
+    return 1;
+  }
+
+  private stepResultFromItemForOrdering(item: vscode.TestItem): CucumberStepResult {
+    const label = item.label.replace(/\s+/g, ' ').trim();
+    const isHook = item.id.startsWith('hook:') || item.id.startsWith('hookStatic:');
+    const hookType = label.startsWith('Before ') && !label.startsWith('BeforeStep ')
+      ? 'BEFORE_TEST_CASE'
+      : label.startsWith('After ') && !label.startsWith('AfterStep ')
+        ? 'AFTER_TEST_CASE'
+        : undefined;
+    return {
+      id: item.id,
+      kind: isHook ? 'hook' : 'step',
+      hookType,
+      text: label,
+      status: 'unknown'
+    };
   }
 
   private applyRuntimeSortText(items: vscode.TestItem[]): void {
@@ -2543,29 +2676,34 @@ for (const method of methods) {
     this.logPanel.appendLine(`cwd: ${cwd}`);
     this.logPanel.appendLine(`shell: ${String(invocation.options.shell)}`);
     this.logPanel.appendLine(`windowsHide: ${String(invocation.options.windowsHide ?? false)}`);
+    this.logPanel.appendLine(`Environment mode: ${this.childEnvironmentOptions().mode ?? 'allowlist'}`);
     this.logEnvSanitization(invocation.options.env);
   }
 
   private logEnvSanitization(childEnv: NodeJS.ProcessEnv | undefined): void {
     this.logPanel.appendLine('--- env sanitize ---');
     for (const key of SANITIZED_ENV_KEYS) {
-      this.logPanel.appendLine(`${key} before: ${this.envValueForLog(process.env[key])}`);
-      this.logPanel.appendLine(`${key} after: ${this.envValueForLog(childEnv?.[key])}`);
+      this.logPanel.appendLine(`${key}: ${childEnv?.[key] === undefined ? 'removed' : 'present'}`);
     }
-    this.logPanel.appendLine(`PATH before: ${this.envValueForLog(process.env.PATH ?? process.env.Path)}`);
-    this.logPanel.appendLine(`PATH after: ${this.envValueForLog(childEnv?.PATH ?? childEnv?.Path)}`);
+    const forwardedKeys = Object.keys(childEnv ?? {}).sort((a, b) => a.localeCompare(b));
+    this.logPanel.appendLine(`Forwarded env keys: ${forwardedKeys.length > 0 ? forwardedKeys.join(', ') : '<none>'}`);
+  }
+
+  private childEnvironmentOptions(): ChildEnvironmentOptions {
+    const config = vscode.workspace.getConfiguration('cucumberRunner');
+    const mode = config.get<ChildEnvironmentMode>('environmentMode', 'allowlist');
+    const allowlist = config.get<string[]>('envAllowlist', []);
+    const overrides = config.get<Record<string, string>>('env', {});
+    return {
+      mode,
+      allowlist,
+      overrides
+    };
   }
 
   private diagnosticsVerbose(): boolean {
     const config = vscode.workspace.getConfiguration('cucumberRunner');
     return config.get<boolean>('diagnosticsVerbose', false) || config.get<boolean>('debugDiagnostics', false);
-  }
-
-  private envValueForLog(value: string | undefined): string {
-    if (value === undefined) {
-      return '<unset>';
-    }
-    return this.truncateForLog(value);
   }
 
   private truncateForLog(value: string): string {

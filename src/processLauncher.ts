@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export const PROCESS_LAUNCHER_VERSION = '2026-05-12-fix-no-s';
+export type ChildEnvironmentMode = 'minimal' | 'allowlist' | 'inherit';
 export const SANITIZED_ENV_KEYS = [
   'NODE_OPTIONS',
   'NODE_PATH',
@@ -25,6 +26,23 @@ const MINIMAL_ENV_KEYS = [
   'ComSpec',
   'PATHEXT'
 ] as const;
+export const DEFAULT_ENV_ALLOWLIST = [
+  'HTTP_PROXY',
+  'HTTPS_PROXY',
+  'NO_PROXY',
+  'http_proxy',
+  'https_proxy',
+  'no_proxy',
+  'NODE_EXTRA_CA_CERTS',
+  'SSL_CERT_FILE',
+  'SSL_CERT_DIR',
+  'REQUESTS_CA_BUNDLE',
+  'CURL_CA_BUNDLE',
+  'PLAYWRIGHT_BROWSERS_PATH',
+  'HOME',
+  'USERDOMAIN',
+  'USERNAME'
+] as const;
 const DANGEROUS_CHILD_ENV_PATTERN = /^(?:VSCODE|npm_|npm_config_|TS_NODE_)/i;
 const DIAGNOSTIC_ENV_PATTERN = /CUCUMBER|NODE|TS_NODE|^npm_|^npm_config|INIT_CWD|VSCODE|ELECTRON/i;
 
@@ -45,6 +63,14 @@ export interface SpawnInvocation {
 
 export interface SpawnBuildOptions {
   nodeExecutable?: string;
+  environment?: ChildEnvironmentOptions;
+}
+
+export interface ChildEnvironmentOptions {
+  mode?: ChildEnvironmentMode;
+  allowlist?: readonly string[];
+  overrides?: NodeJS.ProcessEnv;
+  source?: NodeJS.ProcessEnv;
 }
 
 export const NODE_DIAGNOSTIC_SCRIPT = [
@@ -84,7 +110,7 @@ export function buildSpawnInvocation(
         shell: false,
         windowsHide: true,
         stdio: 'pipe',
-        env: buildMinimalChildEnv()
+        env: buildChildEnvForMode(buildOptions.environment ?? { mode: 'minimal' })
       },
       renderedCommand: renderDirectCommand(executable, args),
       mode: 'local-cucumber-node',
@@ -102,7 +128,7 @@ export function buildSpawnInvocation(
         shell: false,
         windowsHide: true,
         stdio: 'pipe',
-        env: buildChildEnv()
+        env: buildChildEnvForMode(buildOptions.environment ?? { mode: 'inherit' })
       },
       renderedCommand,
       mode: 'windows-cmd'
@@ -116,7 +142,7 @@ export function buildSpawnInvocation(
       cwd: command.cwd,
       shell: false,
       stdio: 'pipe',
-      env: buildChildEnv()
+      env: buildChildEnvForMode(buildOptions.environment ?? { mode: 'inherit' })
     },
     renderedCommand: renderDirectCommand(command.executable, command.args),
     mode: 'direct'
@@ -138,7 +164,7 @@ export function buildNodeDiagnosticInvocation(
       shell: false,
       windowsHide: true,
       stdio: 'pipe',
-      env: buildMinimalChildEnv()
+      env: buildChildEnvForMode(buildOptions.environment ?? { mode: 'minimal' })
     },
     renderedCommand: renderDirectCommand(executable, args),
     mode: 'node-diagnostic'
@@ -176,9 +202,7 @@ export function localCucumberBinPath(cwd: string): string {
 
 export function buildChildEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
-  for (const key of SANITIZED_ENV_KEYS) {
-    delete env[key];
-  }
+  sanitizeChildEnv(env);
   return env;
 }
 
@@ -198,6 +222,67 @@ export function buildMinimalChildEnv(source: NodeJS.ProcessEnv = process.env): N
   }
 
   return env;
+}
+
+export function buildChildEnvForMode(options: ChildEnvironmentOptions = {}): NodeJS.ProcessEnv {
+  const source = options.source ?? process.env;
+  const mode = options.mode ?? 'minimal';
+  const env = mode === 'inherit'
+    ? { ...source }
+    : mode === 'allowlist'
+      ? buildAllowlistedChildEnv(source, options.allowlist)
+      : buildMinimalChildEnv(source);
+
+  applyEnvOverrides(env, options.overrides);
+  sanitizeChildEnv(env);
+  return env;
+}
+
+export function buildAllowlistedChildEnv(
+  source: NodeJS.ProcessEnv = process.env,
+  allowlist: readonly string[] = []
+): NodeJS.ProcessEnv {
+  const env = buildMinimalChildEnv(source);
+  const allowedKeys = [...DEFAULT_ENV_ALLOWLIST, ...allowlist];
+  for (const key of allowedKeys) {
+    const sourceKey = findEnvKey(source, key);
+    if (sourceKey && source[sourceKey] !== undefined) {
+      env[sourceKey] = source[sourceKey];
+    }
+  }
+  return env;
+}
+
+function applyEnvOverrides(env: NodeJS.ProcessEnv, overrides: NodeJS.ProcessEnv | undefined): void {
+  if (!overrides) {
+    return;
+  }
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined || isDangerousEnvKey(key)) {
+      continue;
+    }
+    env[key] = value;
+  }
+}
+
+function sanitizeChildEnv(env: NodeJS.ProcessEnv): void {
+  for (const key of Object.keys(env)) {
+    if (isDangerousEnvKey(key)) {
+      delete env[key];
+    }
+  }
+}
+
+function isDangerousEnvKey(key: string): boolean {
+  return DANGEROUS_CHILD_ENV_PATTERN.test(key) || SANITIZED_ENV_KEYS.some((blocked) => blocked.toLowerCase() === key.toLowerCase());
+}
+
+function findEnvKey(source: NodeJS.ProcessEnv, requestedKey: string): string | undefined {
+  if (source[requestedKey] !== undefined) {
+    return requestedKey;
+  }
+  const requested = requestedKey.toLowerCase();
+  return Object.keys(source).find((key) => key.toLowerCase() === requested);
 }
 
 export interface ResolveNodeExecutableOptions {

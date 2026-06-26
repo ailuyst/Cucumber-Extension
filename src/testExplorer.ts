@@ -1,8 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { CucumberDiscovery, CucumberExampleRow, CucumberFeature, CucumberScenario, CucumberStep } from './cucumberDiscovery';
-import { DiscoveredHook } from './hookDiscovery';
-import { staticHookItemId } from './runtimeHookItems';
+import { CucumberDiscovery, CucumberExampleRow, CucumberFeature, CucumberScenario } from './cucumberDiscovery';
 
 export class CucumberTestExplorer implements vscode.Disposable {
   public readonly controller: vscode.TestController;
@@ -115,17 +113,6 @@ export class CucumberTestExplorer implements vscode.Disposable {
       }
       return;
     }
-
-    this.addStepsWithHooks(
-      scenarioItem,
-      uri,
-      scenario.line,
-      scenario.beforeHooks,
-      scenario.beforeStepHooks,
-      scenario.steps,
-      scenario.afterStepHooks,
-      scenario.afterHooks
-    );
   }
 
   private addExampleRow(
@@ -141,58 +128,6 @@ export class CucumberTestExplorer implements vscode.Disposable {
     );
     item.range = new vscode.Range(example.line - 1, 0, example.line - 1, 0);
     parent.children.add(item);
-    this.addStepsWithHooks(item, uri, example.line, example.beforeHooks, example.beforeStepHooks, example.steps, example.afterStepHooks, example.afterHooks);
-  }
-
-  private addStepsWithHooks(
-    parent: vscode.TestItem,
-    uri: vscode.Uri,
-    ownerLine: number,
-    beforeHooks: readonly DiscoveredHook[],
-    beforeStepHooks: readonly DiscoveredHook[],
-    steps: readonly CucumberStep[],
-    afterStepHooks: readonly DiscoveredHook[],
-    afterHooks: readonly DiscoveredHook[]
-  ): void {
-    let sortIndex = 0;
-    beforeHooks.forEach((hook, index) => {
-      this.setTestItemSortText(this.addHook(parent, hook, index), sortIndex++);
-    });
-    for (const [stepIndex, step] of steps.entries()) {
-      beforeStepHooks.forEach((hook, hookIndex) => {
-        this.setTestItemSortText(this.addHook(parent, hook, beforeHooks.length + stepIndex * (beforeStepHooks.length + afterStepHooks.length + 1) + hookIndex), sortIndex++);
-      });
-      this.setTestItemSortText(this.addStep(parent, uri, ownerLine, step), sortIndex++);
-      afterStepHooks.forEach((hook, hookIndex) => {
-        this.setTestItemSortText(this.addHook(parent, hook, beforeHooks.length + stepIndex * (beforeStepHooks.length + afterStepHooks.length + 1) + beforeStepHooks.length + 1 + hookIndex), sortIndex++);
-      });
-    }
-    afterHooks.forEach((hook, index) => {
-      this.setTestItemSortText(this.addHook(parent, hook, beforeHooks.length + steps.length * (beforeStepHooks.length + afterStepHooks.length + 1) + index), sortIndex++);
-    });
-  }
-
-  private addHook(parent: vscode.TestItem, hook: DiscoveredHook, ordinal: number): vscode.TestItem {
-    const item = this.controller.createTestItem(staticHookItemId(parent.id, { ...hook, ordinal }), hook.label, hook.uri ? vscode.Uri.file(hook.uri) : parent.uri);
-    if (hook.line !== undefined) {
-      item.range = new vscode.Range(hook.line - 1, 0, hook.line - 1, 0);
-    } else {
-      item.range = parent.range;
-    }
-    parent.children.add(item);
-    return item;
-  }
-
-  private addStep(parent: vscode.TestItem, uri: vscode.Uri, ownerLine: number, step: CucumberStep): vscode.TestItem {
-    const stepId = `step:${uri.toString()}:${ownerLine}:${step.line}`;
-    const stepItem = this.controller.createTestItem(stepId, `${step.keyword} ${step.text}`, uri);
-    stepItem.range = new vscode.Range(step.line - 1, 0, step.line - 1, 0);
-    parent.children.add(stepItem);
-    return stepItem;
-  }
-
-  private setTestItemSortText(item: vscode.TestItem, index: number): void {
-    (item as vscode.TestItem & { sortText?: string }).sortText = String(index).padStart(6, '0');
   }
 
   private formatExampleLabel(example: CucumberExampleRow): string {

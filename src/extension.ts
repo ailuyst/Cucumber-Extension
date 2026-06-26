@@ -6,6 +6,7 @@ import { LogPanel } from './logPanel';
 import { CucumberDetailsPanel } from './detailsPanel';
 import { CucumberStepDefinitionProvider } from './stepDefinitionProvider';
 import { StepParameterHighlighter } from './stepParameterHighlighter';
+import { GherkinDocumentFormatter } from './featureFormatter';
 
 export interface CucumberRunnerTestApi {
   controller: vscode.TestController;
@@ -20,6 +21,7 @@ export function activate(context: vscode.ExtensionContext): CucumberRunnerTestAp
   const runner = new CucumberRunner(discovery, logPanel, detailsPanel, explorer.controller);
   const stepDefinitionProvider = new CucumberStepDefinitionProvider(logPanel);
   const stepParameterHighlighter = new StepParameterHighlighter(logPanel);
+  const formatter = new GherkinDocumentFormatter();
 
   explorer.controller.createRunProfile('Run', vscode.TestRunProfileKind.Run, (request, token) => {
     runner.runRequest(request, token);
@@ -35,6 +37,7 @@ export function activate(context: vscode.ExtensionContext): CucumberRunnerTestAp
     logPanel,
     detailsPanel,
     stepParameterHighlighter,
+    vscode.languages.registerDocumentFormattingEditProvider({ scheme: 'file', language: 'gherkin' }, formatter),
     vscode.languages.registerDefinitionProvider({ scheme: 'file', pattern: '**/*.feature' }, stepDefinitionProvider)
   );
 

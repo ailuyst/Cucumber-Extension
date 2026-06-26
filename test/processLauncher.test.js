@@ -2,10 +2,13 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const {
+  buildAllowlistedChildEnv,
   buildChildEnv,
+  buildChildEnvForMode,
   buildMinimalChildEnv,
   buildNodeDiagnosticInvocation,
   buildSpawnInvocation,
+  DEFAULT_ENV_ALLOWLIST,
   localCucumberBinPath,
   localCucumberBinRelativePath,
   PROCESS_LAUNCHER_VERSION,
@@ -15,6 +18,8 @@ const {
 } = require('../out/processLauncher');
 
 assert.strictEqual(PROCESS_LAUNCHER_VERSION, '2026-05-12-fix-no-s');
+assert.ok(DEFAULT_ENV_ALLOWLIST.includes('HTTPS_PROXY'));
+assert.ok(DEFAULT_ENV_ALLOWLIST.includes('NODE_EXTRA_CA_CERTS'));
 assert.ok(localCucumberBinRelativePath().endsWith(path.join('node_modules', '@cucumber', 'cucumber', 'bin', 'cucumber.js')));
 assert.ok(localCucumberBinPath('C:\\work\\project').endsWith(path.join('node_modules', '@cucumber', 'cucumber', 'bin', 'cucumber.js')));
 
@@ -52,12 +57,54 @@ assert.ok(localCucumberBinPath('C:\\work\\project').endsWith(path.join('node_mod
     assert.strictEqual(invocation.options.shell, false);
     assert.strictEqual(invocation.options.windowsHide, true);
     assert.strictEqual(invocation.options.env.PATH, process.env.PATH);
+    assert.strictEqual(invocation.options.env.HTTPS_PROXY, undefined);
   } finally {
     if (originalExecPathDescriptor) {
       Object.defineProperty(process, 'execPath', originalExecPathDescriptor);
     }
     process.env = originalEnv;
   }
+}
+
+{
+  const cwd = path.join(__dirname, 'tmp-launcher-allowlist');
+  const localBin = path.join(cwd, 'node_modules', '@cucumber', 'cucumber', 'bin', 'cucumber.js');
+  fs.mkdirSync(path.dirname(localBin), { recursive: true });
+  fs.writeFileSync(localBin, '#!/usr/bin/env node\n', 'utf8');
+
+  const invocation = buildSpawnInvocation({
+    executable: 'npx',
+    args: ['cucumber-js', 'features/account.feature:11'],
+    cwd
+  }, 'win32', {
+    nodeExecutable: 'C:\\Program Files\\nodejs\\node.exe',
+    environment: {
+      mode: 'allowlist',
+      allowlist: ['CORP_TOKEN_FILE'],
+      overrides: {
+        HTTPS_PROXY: 'http://proxy.example:8080',
+        NODE_OPTIONS: '--inspect'
+      },
+      source: {
+        PATH: 'C:\\Program Files\\nodejs',
+        SystemRoot: 'C:\\Windows',
+        HTTPS_PROXY: 'http://source-proxy.example:8080',
+        NODE_EXTRA_CA_CERTS: 'C:\\certs\\corp.pem',
+        CORP_TOKEN_FILE: 'C:\\tokens\\safe.txt',
+        NODE_OPTIONS: '--inspect',
+        VSCODE_IPC_HOOK_CLI: 'bad'
+      }
+    }
+  });
+
+  assert.strictEqual(invocation.mode, 'local-cucumber-node');
+  assert.strictEqual(invocation.options.env.PATH, 'C:\\Program Files\\nodejs');
+  assert.strictEqual(invocation.options.env.SystemRoot, 'C:\\Windows');
+  assert.strictEqual(invocation.options.env.HTTPS_PROXY, 'http://proxy.example:8080');
+  assert.strictEqual(invocation.options.env.NODE_EXTRA_CA_CERTS, 'C:\\certs\\corp.pem');
+  assert.strictEqual(invocation.options.env.CORP_TOKEN_FILE, 'C:\\tokens\\safe.txt');
+  assert.strictEqual(invocation.options.env.NODE_OPTIONS, undefined);
+  assert.strictEqual(invocation.options.env.VSCODE_IPC_HOOK_CLI, undefined);
 }
 
 {
@@ -205,6 +252,47 @@ assert.strictEqual(quoteWindowsArg('features/my feature.feature:2'), '"features/
   assert.strictEqual(env.npm_config_prefix, undefined);
   assert.strictEqual(env.npm_node_execpath, undefined);
   assert.strictEqual(env.TS_NODE_PROJECT, undefined);
+}
+
+{
+  const env = buildAllowlistedChildEnv({
+    PATH: 'C:\\Program Files\\nodejs',
+    TEMP: 'C:\\Temp',
+    HTTPS_PROXY: 'http://proxy.example:8080',
+    NODE_EXTRA_CA_CERTS: 'C:\\certs\\corp.pem',
+    NODE_OPTIONS: '--inspect',
+    CUSTOM_CA: 'C:\\certs\\custom.pem'
+  }, ['CUSTOM_CA']);
+
+  assert.strictEqual(env.PATH, 'C:\\Program Files\\nodejs');
+  assert.strictEqual(env.TEMP, 'C:\\Temp');
+  assert.strictEqual(env.HTTPS_PROXY, 'http://proxy.example:8080');
+  assert.strictEqual(env.NODE_EXTRA_CA_CERTS, 'C:\\certs\\corp.pem');
+  assert.strictEqual(env.CUSTOM_CA, 'C:\\certs\\custom.pem');
+  assert.strictEqual(env.NODE_OPTIONS, undefined);
+}
+
+{
+  const env = buildChildEnvForMode({
+    mode: 'inherit',
+    overrides: {
+      SAFE_OVERRIDE: 'yes',
+      VSCODE_IPC_HOOK_CLI: 'bad'
+    },
+    source: {
+      PATH: 'C:\\Program Files\\nodejs',
+      HTTPS_PROXY: 'http://proxy.example:8080',
+      NODE_OPTIONS: '--inspect',
+      VSCODE_TEST_VALUE: 'bad'
+    }
+  });
+
+  assert.strictEqual(env.PATH, 'C:\\Program Files\\nodejs');
+  assert.strictEqual(env.HTTPS_PROXY, 'http://proxy.example:8080');
+  assert.strictEqual(env.SAFE_OVERRIDE, 'yes');
+  assert.strictEqual(env.NODE_OPTIONS, undefined);
+  assert.strictEqual(env.VSCODE_TEST_VALUE, undefined);
+  assert.strictEqual(env.VSCODE_IPC_HOOK_CLI, undefined);
 }
 
 {

@@ -23,5 +23,21 @@ assert.strictEqual(
   packageJson.contributes.configuration.properties['cucumberRunner.diagnosticsVerbose'].default,
   false
 );
+assert.strictEqual(
+  packageJson.contributes.configuration.properties['cucumberRunner.environmentMode'].default,
+  'allowlist'
+);
+assert.deepStrictEqual(
+  packageJson.contributes.configuration.properties['cucumberRunner.environmentMode'].enum,
+  ['minimal', 'allowlist', 'inherit']
+);
+assert.deepStrictEqual(
+  packageJson.contributes.configuration.properties['cucumberRunner.envAllowlist'].default,
+  []
+);
+assert.deepStrictEqual(
+  packageJson.contributes.configuration.properties['cucumberRunner.env'].default,
+  {}
+);
 
 console.log('config fixtures passed');

@@ -2,7 +2,7 @@
   "name": "ailuyst-cucumber-runner",
   "displayName": "Ailuyst Cucumber Runner",
   "description": "Discover, run, and inspect Cucumber/Gherkin tests from VS Code Test Explorer.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "ailuyst",
   "icon": "images/icon.png",
   "license": "MIT",
@@ -190,6 +190,32 @@
           "default": 120000,
           "description": "Maximum time in milliseconds before a Cucumber run is killed and marked as errored."
         },
+        "cucumberRunner.environmentMode": {
+          "type": "string",
+          "default": "allowlist",
+          "enum": [
+            "minimal",
+            "allowlist",
+            "inherit"
+          ],
+          "description": "Environment strategy for spawned Cucumber processes. allowlist forwards common corporate proxy/certificate variables, minimal keeps the legacy isolated environment, and inherit forwards the full sanitized VS Code environment."
+        },
+        "cucumberRunner.envAllowlist": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional environment variable names to forward when cucumberRunner.environmentMode is allowlist."
+        },
+        "cucumberRunner.env": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Environment variable overrides applied to spawned Cucumber processes after the selected environment mode."
+        },
         "cucumberRunner.debugDiagnostics": {
           "type": "boolean",
           "default": false,
@@ -218,6 +244,7 @@
     "test:parser": "npm run compile && node test/resultParser.test.js",
     "test:details": "npm run compile && node test/details.test.js",
     "test:failure": "npm run compile && node test/failureMessage.test.js",
+    "test:formatter": "npm run compile && node test/featureFormatter.test.js",
     "test:commands": "npm run compile && node test/commandBuilder.test.js",
     "test:launcher": "npm run compile && node test/processLauncher.test.js",
     "test:paths": "npm run compile && node test/pathCanonicalizer.test.js && node test/pathMatcher.test.js",
